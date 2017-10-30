@@ -1,0 +1,182 @@
+springboot thymeleaf和shiro标签整合
+这里用的是 thymeleaf 2.x版本的
+
+添加依赖
+
+<dependency>
+
+    <groupId>com.github.theborakompanioni</groupId>
+    <artifactId>thymeleaf-extras-shiro</artifactId>
+    <version>1.2.1</version> 
+</dependency>
+
+ 
+
+在shiro的configuration中配置
+
+@Bean
+    public ShiroDialect shiroDialect() {
+        return new ShiroDialect();
+    }
+
+ 
+
+在html中加入xmlns
+
+<html lang="zh_CN" xmlns:th="http://www.thymeleaf.org"
+      xmlns:shiro="http://www.pollix.at/thymeleaf/shiro">
+
+例子
+
+<span shiro:authenticated="true" >
+      <span>欢迎您：<span th:text="${userInfo.realName}"></span></span>
+</span>
+
+
+将下载下来的thymeleaf-extras-shiro.jar打开，会有一个shiro-dialect.xml的文件，这里定义了thymeleaf的shiro属性，我们也可以根据这里面的例子进行简单拓展。
+这里其实是在拓展thymeleaf，官方文档中有详细的说明和简单例子，对照文档，学习会更快。
+
+
+-----------------
+@RequiresAuthentication 表示当前Subject已经通过login进行了身份验证；即Subject.
+                        isAuthenticated()返回true。
+	
+@RequiresUser 表示当前Subject已经身份验证或者通过记住我登录的。
+
+@RequiresGuest 表示当前Subject没有身份验证或通过记住我登录过，即是游客身份。
+	
+@RequiresRoles(value={“admin”, “user”}, logical=Logical.AND) 表示当前Subject需要角色admin和user。
+	 
+@RequiresPermissions (value={“user:a”, “user:b”}, logical= Logical.OR)
+	          表示当前Subject需要权限user:a或user:b。
+	 
+--------------------
+sqlMapper.xml需要说明的问题
+
+　　1、一对一：<association property="tempClass" javaType="com.mybatis.bean.Class">
+
+　　　 association字面意思关联，这里只专门做一对一关联； property表示是com.mybatis.bean.StudentTemp中的属性名称； javaType表示该属性是什么类型对象
+
+　   2、类似视图查询： <select id="getStudentAndClassView" parameterType="int" resultType="com.mybatis.bean.studentclass"> 
+
+　　　　resultType 对应简单类型，也就是实体中的属性名称与数据库表字段名称一模一样；
+　　　　resultMap 对应复杂类型，属性名称与字段名称不一样可以通过resultMap中property,column进行映射，其中一对一与一对多都是用resultMap来映射
+
+　　3、一对多：<collection property="students" ofType="com.mybatis.bean.Student">
+
+　　　collection字面意思是集合，这里专门做一对多关联　，property表示集合类型属性名称，ofType表示集合中的对象是什么类型
+
+　　4、<select>select * from ...</student>与<select>select 字段1，字段2，字段3... from ...</student>
+
+　　　可以显示指出c.class_id,c.class_name,s.s_id,s.s_name列明，如果用"*"代替，则mybatis会自动匹配resultMap或者resultType中提供的列名，
+
+　　   如果某对象存在列映射的属性，但是在select 后面找不到这个列，则在返回结果中，该列多映射的值为null。
+
+ 
+
+　　至此，对于一对一、一对多、视图查询都能很好的解决，主要还是要重点关注第四点说明。
+---------------------
+
+1.LifecycleBeanPostProcessor，这是个DestructionAwareBeanPostProcessor的子类，负责org.apache.shiro.util.Initializable类型bean的生命周期的，初始化和销毁。主要是AuthorizingRealm类的子类，以及EhCacheManager类。
+
+2.HashedCredentialsMatcher，这个类是为了对密码进行编码的，防止密码在数据库里明码保存，当然在登陆认证的生活，这个类也负责对form里输入的密码进行编码。
+
+3.ShiroRealm，这是个自定义的认证类，继承自AuthorizingRealm，负责用户的认证和权限的处理，可以参考JdbcRealm的实现。
+
+4.EhCacheManager，缓存管理，用户登陆成功后，把用户信息和权限信息缓存起来，然后每次用户请求时，放入用户的session中，如果不设置这个bean，每个请求都会查询一次数据库。
+
+5.SecurityManager，权限管理，这个类组合了登陆，登出，权限，session的处理，是个比较重要的类。
+
+6.ShiroFilterFactoryBean，是个factorybean，为了生成ShiroFilter。它主要保持了三项数据，securityManager，filters，filterChainDefinitionManager。
+
+7.DefaultAdvisorAutoProxyCreator，Spring的一个bean，由Advisor决定对哪些类的方法进行AOP代理。
+
+8.AuthorizationAttributeSourceAdvisor，shiro里实现的Advisor类，内部使用AopAllianceAnnotationsAuthorizingMethodInterceptor来拦截用以下注解的方法。老实说，这里注入securityManager，我不知道有啥用，从source上看不出它在什么地方会被调用。
+
+9.ShiroDialect，为了在thymeleaf里使用shiro的标签的bean
+--------------------------
+
+<!DOCTYPE html>  
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity3"
+      xmlns:shiro="http://www.pollix.at/thymeleaf/shiro">
+<head>  
+<meta charset="UTF-8" />  
+<title>Insert title here</title>  
+</head>  
+<body>  
+    <h3>index</h3> 
+    <!-- 验证当前用户是否为“访客”，即未认证（包含未记住）的用户。 -->
+    <p shiro:guest="">Please <a href="login.html">login</a></p>
+    
+    
+    <!-- 认证通过或已记住的用户。 -->
+    <p shiro:user="">
+       Welcome back John! Not John? Click <a href="login.html">here</a> to login.
+    </p>
+    
+    <!-- 已认证通过的用户。不包含已记住的用户，这是与user标签的区别所在。 -->
+    <p shiro:authenticated="">
+      Hello, <span shiro:principal=""></span>, how are you today?
+    </p> 
+    <a shiro:authenticated="" href="updateAccount.html">Update your contact information</a>
+    
+    <!-- 输出当前用户信息，通常为登录帐号信息。 -->
+    <p>Hello, <shiro:principal/>, how are you today?</p>
+    
+    
+    <!-- 未认证通过用户，与authenticated标签相对应。与guest标签的区别是，该标签包含已记住用户。 -->
+    <p shiro:notAuthenticated="">
+       Please <a href="login.html">login</a> in order to update your credit card information.
+    </p>
+     
+    <!-- 验证当前用户是否属于该角色。 -->
+    <a shiro:hasRole="admin" href="admin.html">Administer the system</a><!-- 拥有该角色 -->
+    
+    <!-- 与hasRole标签逻辑相反，当用户不属于该角色时验证通过。 -->
+    <p shiro:lacksRole="developer"><!-- 没有该角色 -->
+      Sorry, you are not allowed to developer the system.
+    </p>
+    
+    <!-- 验证当前用户是否属于以下所有角色。 -->
+    <p shiro:hasAllRoles="developer, admin"><!-- 角色与判断 -->
+       You are a developer and a admin.
+    </p>
+    
+    <!-- 验证当前用户是否属于以下任意一个角色。  -->
+    <p shiro:hasAnyRoles="admin, vip, developer"><!-- 角色或判断 -->
+         You are a admin, vip, or developer.
+    </p>
+    
+    <!--验证当前用户是否拥有指定权限。  -->
+    <a shiro:hasPermission="userInfo:add" href="createUser.html">添加用户</a><!-- 拥有权限 -->
+    
+    <!-- 与hasPermission标签逻辑相反，当前用户没有制定权限时，验证通过。 -->
+    <p shiro:lacksPermission="userInfo:del"><!-- 没有权限 -->
+         Sorry, you are not allowed to delete user accounts.
+    </p>
+    
+    <!-- 验证当前用户是否拥有以下所有角色。 -->
+    <p shiro:hasAllPermissions="userInfo:view, userInfo:add"><!-- 权限与判断 -->
+           You can see or add users.
+    </p>
+    
+    <!-- 验证当前用户是否拥有以下任意一个权限。  -->
+    <p shiro:hasAnyPermissions="userInfo:view, userInfo:del"><!-- 权限或判断 -->
+               You can see or delete users.
+    </p>
+    
+</body>  
+</html>
+
+
+-------------------------
+
+    1. 为什么使用 MD5 盐值加密:
+        　　希望即使两个原始密码相同，加密得到的两个字符串也不同。
+    2. 如何做到:
+        　　1). 在 doGetAuthenticationInfo 方法返回值创建 SimpleAuthenticationInfo 对象的时候, 需要使用SimpleAuthenticationInfo(principal, credentials, credentialsSalt, realmName) 构造器
+        　　2). 使用 ByteSource.Util.bytes() 来计算盐值.
+        　　3). 盐值需要唯一: 一般使用随机字符串或 user id
+        　　4). 使用 new SimpleHash(hashAlgorithmName, credentials, salt, hashIterations); 来计算盐值加密后的密码的值.
+

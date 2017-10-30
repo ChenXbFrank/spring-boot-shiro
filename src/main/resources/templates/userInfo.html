@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="zh_CN" xmlns:th="http://www.thymeleaf.org"
+      xmlns:shiro="http://www.pollix.at/thymeleaf/shiro">
+
+
+<head>
+    <meta charset="UTF-8"/>
+    <title>Title</title>
+</head>
+<body>
+<h3>用户查询界面</h3>
+<shiro:hasRole name="admin">
+<br />I'm fine, 我拥有管理员角色--<span th:text="${username}"></span>
+</shiro:hasRole>
+
+<shiro:hasPermission name="userInfo:del">
+    i have del 权限 
+</shiro:hasPermission>
+
+<shiro:hasPermission name="userInfo:view">
+    i have view 权限 
+</shiro:hasPermission>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.fs.mapper.UserInfoMapper" >
+
+<!--   <resultMap id="BaseResultMap" type="com.fs.entity.UserInfo" >
+    <id column="id" property="id" jdbcType="BIGINT" />
+    <result column="username" property="username" jdbcType="VARCHAR" />
+    <result column="name" property="name" jdbcType="VARCHAR" />
+    <result column="password" property="password" jdbcType="VARCHAR" />
+    <result column="salt" property="salt" jdbcType="VARCHAR" />
+    <result column="state" property="state" jdbcType="INTEGER" /> 
+  </resultMap>
+  
+  <sql id="Base_Column_List" >
+    uid, username, name,password,salt,state
+  </sql>
+  <select id="findByUsername" resultMap="BaseResultMap" parameterType="java.lang.String" >
+    select 
+    <include refid="Base_Column_List" />
+    from user_info
+    where username = #{username}
+  </select> -->
+  <resultMap type="com.fs.entity.UserInfo" id="userMap">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result column="name" property="name"/>
+        <result property="password" column="password"/>
+        <result column="salt" property="salt"/>
+        <result column="state" property="state"/> 
+        <collection property="roles" ofType="com.fs.entity.SysRole">
+            <id property="id" column="id"/>
+            <result property="role" column="role"/>
+            <result property="description" column="description"/>
+            <result column="available" property="available"/>
+            <collection property="permissions" ofType="com.fs.entity.SysPermission">
+                <id property="id" column="id"/>
+                <result property="name" column="name"/>
+                <result property="resourceType" column="resource_type"/>
+                <result property="url" column="url"/>
+                <result property="permission" column="permission"/>
+                <result property="parentId" column="parent_id"/>
+                <result property="parentIds" column="parent_ids"/>
+                <result property="available" column="available"/>
+            </collection>
+        </collection>
+    </resultMap>
+    
+    <select id="findByUsername" parameterType="java.lang.String" resultMap="userMap">
+        SELECT u.*,r.*,m.* FROM user_info u inner join sys_user_role ur on ur.uid=u.id 
+        inner join sys_role r on r.id=ur.role_id
+        inner join sys_role_permission  mr on mr.role_id=r.id 
+        inner join sys_permission m on mr.permission_id=m.id 
+        WHERE username=#{username}
+    </select>
+ 
+</mapper>
